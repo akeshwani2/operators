@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { ChatMessage, AIResponse } from '@/types/core'
 import Sidebar from "@/components/Sidebar"
+import { ArrowRight, ArrowUp, ArrowUpCircle } from 'lucide-react'
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -52,6 +53,7 @@ export default function ChatInterface() {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     })
@@ -253,7 +255,7 @@ export default function ChatInterface() {
               key={message.id}
               className={`p-4 rounded-lg mb-4 ${
                 message.role === 'user' 
-                  ? 'bg-blue-500 text-white ml-auto' 
+                  ? 'bg-white text-black ml-auto' 
                   : 'bg-gray-800 text-white'
               } max-w-[80%] whitespace-pre-wrap`}
             >
@@ -274,24 +276,24 @@ export default function ChatInterface() {
       {/* Fixed input form at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] p-4 border-t border-gray-800"
            style={{ marginLeft: isSidebarOpen ? '16rem' : '4rem' }}>
-        <form onSubmit={handleSubmit} className="max-w-[100%]">
+        <form onSubmit={handleSubmit} className="max-w-[100%] focus:outline-none focus:ring-0">
           <div className="flex gap-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
-              className="flex-1 p-2 bg-gray-800 text-white border border-gray-700 rounded-lg"
+              className="flex-1 p-2 bg-black tracking-tight text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-white focus:border focus:border-white/40"
               placeholder={isLoading ? "Processing..." : "Type your request..."}
             />
             <button 
               type="submit"
               disabled={isLoading}
-              className={`px-4 py-2 bg-blue-500 text-white rounded-lg ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
+              className={`px-4 py-2 bg-white text-black rounded-lg ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'
               }`}
             >
-              {isLoading ? 'Processing...' : 'Send'}
+              {isLoading ? 'Processing...' : <ArrowUp />}
             </button>
           </div>
         </form>

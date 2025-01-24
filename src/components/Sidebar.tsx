@@ -45,7 +45,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         <div className="flex items-center justify-between mb-6 px-2">
           {isOpen && <a href="/" className="text-gray-200">EVO</a>}
           <div className="flex items-center justify-center ">
-            {!isOpen && <a href="/" className="text-gray-200 text-sm">E</a>}
+            {!isOpen && <a className="text-gray-200 text-sm">E</a>}
           </div>
           <button 
             onClick={() => setIsOpen(!isOpen)}

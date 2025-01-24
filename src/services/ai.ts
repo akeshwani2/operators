@@ -16,38 +16,37 @@ export async function processMessage(message: string): Promise<AIResponse> {
         content: `You are an AI assistant capable of managing calendar operations.
         You can:
         1. Create new events
-        2. List events (daily/weekly summaries)
-        3. Update existing events (reschedule)
+        2. List events for any date range
+        3. Update existing events
         4. Delete events
-        5. Postpone events
 
-        For rescheduling/updating events:
-        1. When users mention "reschedule", "move", "postpone", "change time", or anything similar - use action: "update_event"
-        2. Extract the event title from their request (e.g., "dinner", "meeting with Darshit")
-        3. Set the new date and time in the required format
-        4. Example: "reschedule the dinner to 3pm" should update the "dinner" event
-        5. Always include both the title and new time in the operation parameters
-        6. If the user doesn't specify a new time, use the current time
-        7. If the user doesn't specify a year, use 2025
+        For listing events:
+        1. Handle queries like "what events do I have on [date]"
+        2. Support date ranges like "show me events between [date1] and [date2]"
+        3. Support relative dates like "last week", "next month"
+        4. For specific dates, set both startDate and endDate to that day
+        5. For ranges, set appropriate startDate and endDate
 
-        Date and Time Handling:
-        1. Parse dates in any format (e.g., "January 25", "01/25", "tomorrow")
-        2. Convert dates to YYYY-MM-DD format
-        3. Parse times in any format (e.g., "2pm", "14:00", "2:00 PM")
-        4. Convert times to HH:mm 24-hour format
-        
-        Example update operation:
+        Date formats:
+        - Convert all dates to YYYY-MM-DD format
+        - Handle various input formats (e.g., "January 25", "01/25", "tomorrow")
+        - For relative dates like "last week", calculate the correct date range
+
+        Example list operations:
         {
-          "action": "update_event",
-          "title": "dinner",
-          "date": "2025-01-26",
-          "time": "15:00"
+          "action": "list_events",
+          "startDate": "2024-01-01",
+          "endDate": "2024-01-31"
         }
 
-        Respond naturally to the user's requests:
-        - For updates: "I'll reschedule [event] to [new date/time]"
-        - For summaries: "I'll fetch your schedule!"
-        - Use a friendly, conversational tone`,
+        {
+          "action": "list_events",
+          "date": "2024-02-15"  // For single day queries
+        }
+
+        Respond naturally to queries:
+        - For specific dates: "I'll check your schedule for [date]"
+        - For ranges: "I'll find your events between [date1] and [date2]"`,
       },
       {
         role: "user",
@@ -63,36 +62,26 @@ export async function processMessage(message: string): Promise<AIResponse> {
           properties: {
             action: {
               type: "string",
-              enum: [
-                "create_event",
-                "list_events",
-                "update_event",
-                "delete_event",
-                "postpone_event",
-              ],
+              enum: ["create_event", "list_events", "update_event", "delete_event"],
               description: "The type of calendar operation to perform",
             },
-            title: {
+            startDate: {
               type: "string",
-              description: "The title/summary of the event to create or modify",
+              description: "Start date in YYYY-MM-DD format for date range queries",
+            },
+            endDate: {
+              type: "string",
+              description: "End date in YYYY-MM-DD format for date range queries",
             },
             date: {
               type: "string",
-              description: "The date in YYYY-MM-DD format",
-            },
-            time: {
-              type: "string",
-              description: "The time in HH:mm format (24-hour)",
+              description: "Specific date in YYYY-MM-DD format for single-day queries",
             },
             period: {
               type: "string",
               enum: ["day", "week", "month"],
-              description: "Time period for listing events",
-            },
-            eventId: {
-              type: "string",
-              description: "ID of the event to modify (for updates/deletions)",
-            },
+              description: "Time period for relative queries",
+            }
           },
           required: ["action"],
         },
@@ -143,7 +132,6 @@ export async function processMessage(message: string): Promise<AIResponse> {
       };
     }
   }
-
   return {
     message: aiMessage.content || "I'm not sure I understood that request. Could you please be more specific?",
     operation,

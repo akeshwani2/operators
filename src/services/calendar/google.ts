@@ -5,6 +5,7 @@ const calendar = google.calendar('v3')
 
 export class GoogleCalendarService {
   private auth: any
+  private timezone: string
 
   constructor(tokens: any) {
     this.auth = new google.auth.OAuth2(
@@ -13,6 +14,7 @@ export class GoogleCalendarService {
       process.env.GOOGLE_REDIRECT_URI
     )
     this.auth.setCredentials(tokens)
+    this.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     // Set up token refresh callback
     this.auth.on('tokens', async (tokens: any) => {
@@ -80,9 +82,24 @@ export class GoogleCalendarService {
         timeMax: timeMax.toISOString(),
         singleEvents: true,
         orderBy: 'startTime',
+        timeZone: this.timezone,
       })
 
-      return response.data.items
+      return response.data.items?.map(event => ({
+        ...event,
+        start: {
+          ...event.start,
+          dateTime: event.start?.dateTime ? 
+            new Date(event.start.dateTime).toISOString() : 
+            event.start?.date
+        },
+        end: {
+          ...event.end,
+          dateTime: event.end?.dateTime ? 
+            new Date(event.end.dateTime).toISOString() : 
+            event.end?.date
+        }
+      }))
     } catch (error) {
       console.error('Failed to list calendar events:', error)
       throw error

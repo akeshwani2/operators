@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     console.log('Calendar API received:', body)
-    const { action, title, date, time, period, eventId, changes } = body
+    const { action, title, date, time, period, eventId, changes, startDate, endDate } = body
 
     // Get tokens from database first
     const user = await prisma.user.findUnique({
@@ -25,13 +25,31 @@ export async function POST(request: Request) {
 
     switch (action) {
       case 'list_events':
-        const now = new Date()
-        const endDate = new Date(now)
-        if (period === 'week') endDate.setDate(endDate.getDate() + 7)
-        else if (period === 'month') endDate.setMonth(endDate.getMonth() + 1)
-        else endDate.setDate(endDate.getDate() + 1)
+        let timeMin: Date, timeMax: Date
+
+        if (startDate && endDate) {
+          // Use specific date range if provided
+          timeMin = new Date(`${startDate}T00:00:00`)
+          timeMax = new Date(`${endDate}T23:59:59.999`)
+        } else if (date) {
+          // For a specific day, ensure we cover the full day in local timezone
+          timeMin = new Date(`${date}T00:00:00`)
+          timeMax = new Date(`${date}T23:59:59.999`)
+          
+          // Adjust for timezone offset
+          const offset = timeMin.getTimezoneOffset() * 60000
+          timeMin = new Date(timeMin.getTime() - offset)
+          timeMax = new Date(timeMax.getTime() - offset)
+        } else {
+          // Default period-based logic
+          timeMin = new Date()
+          timeMax = new Date()
+          if (period === 'week') timeMax.setDate(timeMax.getDate() + 7)
+          else if (period === 'month') timeMax.setMonth(timeMax.getMonth() + 1)
+          else timeMax.setDate(timeMax.getDate() + 1)
+        }
         
-        const events = await calendarService.listEvents(now, endDate)
+        const events = await calendarService.listEvents(timeMin, timeMax)
         return NextResponse.json({ success: true, events })
 
       case 'update_event':
