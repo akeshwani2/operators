@@ -5,24 +5,10 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    console.log('Received calendar request:', body)
+    console.log('Calendar API received:', body)
+    const { action, title, date, time, period, eventId, changes } = body
 
-    const { title, date, time } = body
-
-    // Parse the exact date and time
-    const [hours, minutes] = time.split(':')
-    const eventDateTime = new Date(`${date}T${time}:00`)
-
-    // Create end time (1 hour later)
-    const endDateTime = new Date(eventDateTime)
-    endDateTime.setHours(endDateTime.getHours() + 1)
-
-    console.log('Event times:', {
-      start: eventDateTime.toISOString(),
-      end: endDateTime.toISOString()
-    })
-
-    // Get tokens from database
+    // Get tokens from database first
     const user = await prisma.user.findUnique({
       where: { id: 'default-user' }
     })
@@ -34,25 +20,88 @@ export async function POST(request: Request) {
       )
     }
 
+    // Initialize calendar service with tokens
     const calendarService = new GoogleCalendarService(user.googleTokens)
-    
-    const event = await calendarService.createEvent({
-      summary: title,
-      description: `Created via AI Assistant`,
-      startTime: eventDateTime,
-      endTime: endDateTime
-    })
 
-    return NextResponse.json({ 
-      success: true, 
-      event,
-      message: `Successfully created "${title}" for ${date} at ${time}`
-    })
+    switch (action) {
+      case 'list_events':
+        const now = new Date()
+        const endDate = new Date(now)
+        if (period === 'week') endDate.setDate(endDate.getDate() + 7)
+        else if (period === 'month') endDate.setMonth(endDate.getMonth() + 1)
+        else endDate.setDate(endDate.getDate() + 1)
+        
+        const events = await calendarService.listEvents(now, endDate)
+        return NextResponse.json({ success: true, events })
 
+      case 'update_event':
+        // First, get the event details to update
+        const upcomingEvents = await calendarService.listEvents(
+          new Date(), // from now
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // to 30 days from now
+        ) || []
+        
+        // Find the event with matching title or closest match
+        const eventToUpdate = upcomingEvents.find((event: any) => 
+          event.summary.toLowerCase().includes(title.toLowerCase())
+        )
+
+        if (!eventToUpdate || !eventToUpdate.id) {
+          return NextResponse.json(
+            { error: 'Could not find the event to update' },
+            { status: 404 }
+          )
+        }
+
+        // Parse the new date and time
+        const newDateTime = new Date(`${date}T${time}:00`)
+        const newEndDateTime = new Date(newDateTime)
+        newEndDateTime.setHours(newEndDateTime.getHours() + 1) // Assume 1-hour duration
+
+        const updatedEvent = await calendarService.updateEvent(
+          eventToUpdate.id as string, // Type assertion since we checked it exists above
+          {
+            summary: changes?.newTitle || eventToUpdate.summary,
+            startTime: newDateTime,
+            endTime: newEndDateTime
+          }
+        )
+
+        return NextResponse.json({ 
+          success: true, 
+          event: updatedEvent,
+          message: `Successfully rescheduled "${eventToUpdate.summary}" to ${date} at ${time}`
+        })
+
+      case 'delete_event':
+        await calendarService.deleteEvent(eventId)
+        return NextResponse.json({ success: true, message: 'Event deleted' })
+
+      case 'create_event':
+        const eventDateTime = new Date(`${date}T${time}:00`)
+        const endDateTime = new Date(eventDateTime)
+        endDateTime.setHours(endDateTime.getHours() + 1)
+
+        const event = await calendarService.createEvent({
+          summary: title,
+          description: `Created via EVO`,
+          startTime: eventDateTime,
+          endTime: endDateTime
+        })
+
+        return NextResponse.json({ 
+          success: true, 
+          event,
+          message: `Successfully created "${title}" for ${date} at ${time}`
+        })
+
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    }
   } catch (error) {
     console.error('Calendar operation failed:', error)
     return NextResponse.json(
-      { error: 'Failed to create calendar event' },
+      { error: 'Operation failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

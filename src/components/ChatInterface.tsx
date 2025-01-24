@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { ChatMessage, AIResponse } from '@/types/core'
+import Header from "@/components/Header"
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -30,12 +31,21 @@ export default function ChatInterface() {
     }
   }
 
+  const formatEventTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!input.trim() || isLoading) return
     
-    // Create new user message
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -49,61 +59,95 @@ export default function ChatInterface() {
     setOperationStatus({ isProcessing: true, message: 'Processing your request...' })
 
     try {
-      // First, get AI response
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: input }),
       })
 
       const data: AIResponse = await response.json()
       
-      // Add AI response to chat
-      const assistantMessage: ChatMessage = {
+      // Add AI's initial response
+      setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: data.message,
         timestamp: new Date()
-      }
-      setMessages(prev => [...prev, assistantMessage])
+      }])
 
-      // If there's an operation, execute it
+      // Handle the operation
       if (data.operation) {
-        setOperationStatus({ 
-          isProcessing: true, 
-          message: 'Creating calendar event...' 
-        })
+        const { action } = data.operation.parameters
 
-        const operationResponse = await fetch('/api/calendar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data.operation.parameters),
-        })
+        if (action === 'list_events') {
+          setOperationStatus({ 
+            isProcessing: true, 
+            message: 'Fetching your schedule...' 
+          })
 
-        if (!operationResponse.ok) {
-          throw new Error('Failed to create calendar event')
+          const calendarResponse = await fetch('/api/calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.operation.parameters),
+          })
+
+          const calendarData = await calendarResponse.json()
+
+          if (calendarData.events && calendarData.events.length > 0) {
+            const eventsSummary = calendarData.events.map((event: any) => (
+              `• ${event.summary} - ${formatEventTime(event.start.dateTime || event.start.date)}`
+            )).join('\n')
+
+            setMessages(prev => [...prev, {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: `Here's your schedule:\n\n${eventsSummary}`,
+              timestamp: new Date()
+            }])
+          } else {
+            setMessages(prev => [...prev, {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: 'You have no events scheduled for this period.',
+              timestamp: new Date()
+            }])
+          }
+          
+          setOperationStatus({
+            isProcessing: false,
+            status: 'success',
+            message: 'Schedule fetched successfully!'
+          })
+        } else if (action === 'create_event') {
+          // Existing create event logic...
+          setOperationStatus({ 
+            isProcessing: true, 
+            message: 'Creating calendar event...' 
+          })
+
+          const calendarResponse = await fetch('/api/calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.operation.parameters),
+          })
+
+          if (!calendarResponse.ok) {
+            throw new Error('Failed to create calendar event')
+          }
+
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: '✅ Calendar event created successfully!',
+            timestamp: new Date()
+          }])
+
+          setOperationStatus({
+            isProcessing: false,
+            status: 'success',
+            message: 'Calendar event created!'
+          })
         }
-
-        const operationResult = await operationResponse.json()
-        
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: '✅ Calendar event created successfully!',
-          timestamp: new Date()
-        }])
-
-        setOperationStatus({
-          isProcessing: false,
-          status: 'success',
-          message: 'Calendar event created!'
-        })
-      } else {
-        setOperationStatus({ isProcessing: false })
       }
 
     } catch (error) {
@@ -136,6 +180,8 @@ export default function ChatInterface() {
 
   return (
     <div className="flex flex-col h-screen">
+          <Header />
+
       {!isAuthenticated && (
         <div className="p-4 bg-gray-800 text-white">
           <button
@@ -155,7 +201,7 @@ export default function ChatInterface() {
               message.role === 'user' 
                 ? 'bg-blue-500 text-white ml-auto' 
                 : 'bg-gray-800 text-white'
-            } max-w-[80%]`}
+            } max-w-[80%] whitespace-pre-wrap`}
           >
             {message.content}
           </div>

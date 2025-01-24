@@ -1,9 +1,13 @@
-import ChatInterface from '@/components/ChatInterface'
+import React from "react";
+import Link from "next/link";
+import Header from "@/components/Header"
 
-export default function Home() {
+function page() {
   return (
-    <main className="container mx-auto">
-      <ChatInterface />
-    </main>
-  )
+    <div className="flex flex-col h-screen">
+      <Header />
+    </div>
+  );
 }
+
+export default page;

@@ -69,4 +69,93 @@ export class GoogleCalendarService {
       throw error
     }
   }
+
+  // List events
+  async listEvents(timeMin: Date, timeMax: Date) {
+    try {
+      const response = await calendar.events.list({
+        auth: this.auth,
+        calendarId: 'primary',
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime',
+      })
+
+      return response.data.items
+    } catch (error) {
+      console.error('Failed to list calendar events:', error)
+      throw error
+    }
+  }
+
+  // Update event
+  async updateEvent(eventId: string, updates: {
+    summary?: string
+    description?: string
+    startTime?: Date
+    endTime?: Date
+  }) {
+    try {
+      const response = await calendar.events.patch({
+        auth: this.auth,
+        calendarId: 'primary',
+        eventId: eventId,
+        requestBody: {
+          summary: updates.summary,
+          start: updates.startTime ? {
+            dateTime: updates.startTime.toISOString(),
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          } : undefined,
+          end: updates.endTime ? {
+            dateTime: updates.endTime.toISOString(),
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          } : undefined,
+        },
+      })
+
+      return response.data
+    } catch (error) {
+      console.error('Failed to update calendar event:', error)
+      throw error
+    }
+  }
+
+  // Delete event
+  async deleteEvent(eventId: string) {
+    try {
+      await calendar.events.delete({
+        auth: this.auth,
+        calendarId: 'primary',
+        eventId: eventId,
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to delete calendar event:', error)
+      throw error
+    }
+  }
+
+  // Get week summary
+  async getWeekSummary() {
+    const now = new Date()
+    const weekStart = new Date(now)
+    weekStart.setHours(0, 0, 0, 0)
+    
+    const weekEnd = new Date(now)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+    weekEnd.setHours(23, 59, 59, 999)
+
+    const events = await this.listEvents(weekStart, weekEnd)
+    return this.formatEventSummary(events || [])
+  }
+
+  private formatEventSummary(events: any[]) {
+    return events.map(event => ({
+      title: event.summary,
+      start: event.start.dateTime || event.start.date,
+      end: event.end.dateTime || event.end.date,
+      id: event.id
+    }))
+  }
 }
