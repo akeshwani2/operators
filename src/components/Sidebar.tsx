@@ -37,22 +37,42 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && !sidebar.contains(event.target as Node) && isOpen) {
+          setIsOpen(false);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, setIsOpen]);
+
     return (
       <div>
-      <nav className={`fixed left-0 top-0 h-screen bg-[#0a0a0a] border-r border-gray-800 p-4 transition-all duration-300 ${
-        isOpen ? 'w-64' : 'w-16'
-      }`}>
+      <nav 
+        id="sidebar"
+        onClick={() => !isOpen && setIsOpen(true)}
+        className={`fixed left-0 top-0 h-screen bg-[#0a0a0a] border-r border-gray-800 p-4 
+          transition-all duration-300 ease-in-out transform ${
+          isOpen ? 'w-64 translate-x-0' : 'w-16 translate-x-0 hover:bg-gray-800/10'
+        }`}>
         <div className="flex items-center justify-between mb-6 px-2">
-          {isOpen && <a href="/" className="text-gray-200">EVO</a>}
+          <button onClick={() => setIsOpen(false)}>
+            {isOpen && <a className="text-gray-200">EVO</a>}
+          </button>
           <div className="flex items-center justify-center ">
+            <button onClick={() => setIsOpen(!isOpen)}>
             {!isOpen && <a className="text-gray-200 text-sm">E</a>}
+            </button>
           </div>
-          <button 
+          {/* <button 
             onClick={() => setIsOpen(!isOpen)}
             className="p-2 rounded-lg hover:bg-gray-800/50"
           >
             {isOpen ? <ChevronLeft className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
-          </button>
+          </button> */}
         </div>
         
         <div className="space-y-1">
