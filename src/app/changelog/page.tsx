@@ -1,9 +1,16 @@
-import React from 'react'
+"use client"
 
-function page() {
+import Sidebar from '@/components/Sidebar'
+import React, { useState } from 'react'
+
+function Page() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div>page</div>
+    <div>
+      <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
+    </div>
   )
 }
 
-export default page
+export default Page
