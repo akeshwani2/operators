@@ -147,6 +147,36 @@ export default function ChatInterface() {
             status: 'success',
             message: 'Calendar event created!'
           })
+        } else if (action === 'update_event') {
+          setOperationStatus({ 
+            isProcessing: true, 
+            message: 'Updating calendar event...' 
+          })
+
+          const calendarResponse = await fetch('/api/calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.operation.parameters),
+          })
+
+          const result = await calendarResponse.json()
+
+          if (!calendarResponse.ok) {
+            throw new Error(result.error || 'Failed to update calendar event')
+          }
+
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `✅ ${result.message || 'Calendar event updated successfully!'}`,
+            timestamp: new Date()
+          }])
+
+          setOperationStatus({
+            isProcessing: false,
+            status: 'success',
+            message: 'Calendar event updated!'
+          })
         }
       }
 

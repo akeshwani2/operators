@@ -16,25 +16,37 @@ export async function processMessage(message: string): Promise<AIResponse> {
         content: `You are an AI assistant capable of managing calendar operations.
         You can:
         1. Create new events
-        2. List events (daily/weekly/monthly summaries)
-        3. Update existing events
+        2. List events (daily/weekly summaries)
+        3. Update existing events (reschedule)
         4. Delete events
         5. Postpone events
 
-        For listing events:
-        - When users ask for summaries (e.g., "what's my week look like?", "show my schedule")
-        - Set action as "list_events" and specify the appropriate period ("day", "week", "month")
-        - No need for date/time parameters for summaries
+        For rescheduling/updating events:
+        1. When users mention "reschedule", "move", "postpone", "change time", or anything similar - use action: "update_event"
+        2. Extract the event title from their request (e.g., "dinner", "meeting with Darshit")
+        3. Set the new date and time in the required format
+        4. Example: "reschedule the dinner to 3pm" should update the "dinner" event
+        5. Always include both the title and new time in the operation parameters
+        6. If the user doesn't specify a new time, use the current time
+        7. If the user doesn't specify a year, use 2025
 
-        For other calendar operations:
-        1. Parse dates in any format (e.g., "January 25", "Jan 25", "01/25", "tomorrow", etc.)
+        Date and Time Handling:
+        1. Parse dates in any format (e.g., "January 25", "01/25", "tomorrow")
         2. Convert dates to YYYY-MM-DD format
         3. Parse times in any format (e.g., "2pm", "14:00", "2:00 PM")
         4. Convert times to HH:mm 24-hour format
         
+        Example update operation:
+        {
+          "action": "update_event",
+          "title": "dinner",
+          "date": "2025-01-26",
+          "time": "15:00"
+        }
+
         Respond naturally to the user's requests:
-        - For summaries: "I'll fetch your schedule for this week!"
-        - For events: Confirm the specific date, time, and title
+        - For updates: "I'll reschedule [event] to [new date/time]"
+        - For summaries: "I'll fetch your schedule!"
         - Use a friendly, conversational tone`,
       },
       {
@@ -62,7 +74,7 @@ export async function processMessage(message: string): Promise<AIResponse> {
             },
             title: {
               type: "string",
-              description: "The title of the event",
+              description: "The title/summary of the event to create or modify",
             },
             date: {
               type: "string",
@@ -80,15 +92,6 @@ export async function processMessage(message: string): Promise<AIResponse> {
             eventId: {
               type: "string",
               description: "ID of the event to modify (for updates/deletions)",
-            },
-            changes: {
-              type: "object",
-              description: "Changes to apply to an event",
-              properties: {
-                newTitle: { type: "string" },
-                newDate: { type: "string" },
-                newTime: { type: "string" },
-              },
             },
           },
           required: ["action"],
